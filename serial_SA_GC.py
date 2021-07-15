@@ -1,65 +1,59 @@
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
-
 from tqdm import tqdm
 
+####
+## Functions
+####
+
+# cost function
 def H(Graph, color_map):
-    E, cost = Graph.edges(), 0
-    for (v, w) in E:
+    cost = 0
+    for (v, w) in Graph.edges():
         if color_map[v] == color_map[w]:
             cost += 1
     return cost
 
+# generates a random color map
 def gen_map(colors, n):
-    color_map = []
-    for i in range(n):
-        color_map.append(np.random.choice(colors))
-    return np.array(color_map)
+    return np.array( [np.random.choice(colors) for i in range(n)] )
 
+# returns n number of colors
 def color_picker(n):
-    options = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
-    selection, opt_cop = [], options.copy()
-    for i in range(n):
-        c = np.random.choice(opt_cop)
-        selection.append(c)
-        opt_cop.remove(c)
-    return selection
+    options = np.array(['b', 'g', 'r', 'c', 'm', 'y', 'k'])
+    return np.array( [options[i] for i in np.random.choice(options.size, n, replace=False)] )
 
+# removes color x from list of colors and return another color other than x
 def new_color(colors, x):
-    colors.remove(x)
-    return np.random.choice(colors)
+    return np.random.choice( np.setdiff1d(colors, x) )
 
 def highest_degree(Graph):
-    temp, max = Graph.degree(), 0
-    for (v,d) in temp:
-        if d > max:
-            max = d
-    return max
+    return np.amax( np.array(Graph.degree())[:,1] )
 
 def avg_degree(Graph):
-    temp, total = Graph.degree(), 0
-    for (v,d) in temp:
-        total += d
-    return total/Graph.order()
+    return np.average( np.array(Graph.degree())[:,1] )
 
-def anneal(Graph, map, colors):
-    init_temp = 30
+def anneal(Graph, coloring, colors):
+    init_temp = 50
     final_temp = 0
     alpha = .1
     beta = 0.95
 
     current_temp = init_temp
-    current_state = map.copy()
+    current_state = coloring.copy()
     solution = current_state.copy()
 
     while(current_temp > final_temp):
-        vertex = np.random.randint(0, Graph.order()-1)    # pick random vertex
-
+        # pick random vertex
+        vertex = np.random.randint(0, Graph.order()-1)
+        
+        # choose dif color from orig and re-color
         orig_color = current_state[vertex]
-        current_state[vertex] = new_color(colors.copy(), orig_color)    # pick dif color from orig and re-color
-
-        cost = H(Graph, current_state) - H(Graph, solution)    # compute cost
+        current_state[vertex] = new_color(colors, orig_color)
+        
+        # compute cost
+        cost = H(Graph, current_state) - H(Graph, solution)
         if cost <= 0:
             if np.random.uniform(0, 1) < np.exp(-cost/current_temp):
                 solution = current_state.copy()
@@ -68,63 +62,84 @@ def anneal(Graph, map, colors):
                 solution = current_state.copy()
         else:
             current_state[vertex] = orig_color
+        # decrease temp
         current_temp -= alpha
+        
     return solution
 
 
+#####
+## CONFIGURATION
+####
 
-n = 100
+colors = color_picker(3) # numb of possible colors (max 7)
+iterations = 50
+
+vert_count = 100
+edge_count = vert_count
 deg = 3
 
-#G = nx.gnm_random_graph(n, n)
-G = nx.random_degree_sequence_graph([deg for i in range(n)]) # degree sequence
 
-print(f"\n{G.order()} nodes") # G.order number of nodes
-print(f"highest degree: {highest_degree(G)}")
-print(f"avg degree: {avg_degree(G)}\n")
+####
+## Generate Graph
+####
 
-colors = color_picker(3)  # numb of possible colors (max 7)
-numb_iter = 100
+# G = nx.gnm_random_graph(vert_count, edge_count)
+G = nx.random_degree_sequence_graph([deg for i in range(vert_count)]) # degree sequence
 
-color_map = gen_map(colors, G.order())
-min_cost = H(G, color_map)
+print(f"\n{G.order()} Vertices\nHighest deg: {highest_degree(G)} | Avg deg: {avg_degree(G)}\n")
 
-cost_data = [min_cost]
+if G.order() <= 10: # G.order number of nodes
+    pos = nx.spring_layout(G)
+    nx.draw(G, pos, with_labels=True)
 
+####
+## Anneal
+####
+
+coloring = gen_map(colors, G.order())
+min_cost = H(G, coloring)
+
+cost_data = np.array([min_cost])
+avg = 5
+
+print(f"initial cost {H(G,coloring)}\n")
 print("annealing...")
 
-# smooth 
-for i in tqdm(range(numb_iter)):
+# REFINED
+for i in tqdm(range(iterations)):
     avg_run = np.array([])
-    for j in range(10):
-        temp = list(anneal(G, color_map, colors))
-        temp_cost = H(G,temp)
-        avg_run = np.append(avg_run, temp_cost)
-        if temp_cost < min_cost:
-            color_map = temp.copy()
-            min_cost = temp_cost
-    cost_data.append(np.average(avg_run))
+    for j in range(avg):
+        sol = anneal(G, coloring, colors)
+        sol_cost = H(G, sol)
+        avg_run = np.append(avg_run, sol_cost)
+        if sol_cost < min_cost:
+            coloring = sol
+            min_cost = sol_cost
+    cost_data = np.append(cost_data, np.average(avg_run))
+
+# # NOT REFINED
+# raw_data = np.array([min_cost])
+# for i in tqdm(range(iterations)):
+#     sol = anneal(G, coloring, colors)
+#     sol_cost = H(G, sol)
+#     raw_data = np.append(raw_data, sol_cost)
+#     if sol_cost < min_cost:
+#         coloring = sol
+#         min_cost = sol_cost
+#     cost_data = np.append(cost_data, min_cost)
 
 
-# # not smooth
-# for i in tqdm(range(numb_iter)):
-#     temp = list(anneal(G, color_map, colors))
-#     temp_cost = H(G,temp)
-#     if temp_cost < min_cost:
-#         color_map = temp.copy()
-#         min_cost = temp_cost
-#     cost_data.append(temp_cost)
-
-print(f"min cost: {H(G, color_map)}")
+print(f"min cost {H(G,coloring)}")
 
 if G.order() <= 10:
-    pos = nx.spring_layout(G)
-    nx.draw(G, pos, node_color=color_map, with_labels=True)
-    plt.show()
+    nx.draw(G, pos, node_color=coloring, with_labels=True)
 
+####
+## Plot
+####
 
-plt.plot([i for i in range(numb_iter+1)], cost_data)
-plt.title(f"vertices:{G.order()} deg:{avg_degree(G)}")
-plt.xlabel("Runs")
-plt.ylabel("Cost")
+plt.plot([x for x in range(iterations+1)], cost_data)
+plt.title(f"{G.order()} Vertices | Avg deg: {avg_degree(G)}")
+plt.xlabel("Iterations"), plt.ylabel("Cost")
 plt.show()
