@@ -72,8 +72,9 @@ def anneal(Graph, coloring, colors):
 ## CONFIGURATION
 ####
 
-colors = color_picker(3) # numb of possible colors (max 7)
-iterations = 50
+nCol = 3
+colors = color_picker(nCol) # numb of possible colors (max 7)
+iterations = 100
 
 vert_count = 100
 edge_count = vert_count
@@ -101,7 +102,7 @@ coloring = gen_map(colors, G.order())
 min_cost = H(G, coloring)
 
 cost_data = np.array([min_cost])
-avg = 5
+avg = 3
 
 print(f"initial cost {H(G,coloring)}\n")
 print("annealing...")
@@ -140,6 +141,7 @@ if G.order() <= 10:
 ####
 
 plt.plot([x for x in range(iterations+1)], cost_data)
-plt.title(f"{G.order()} Vertices | Avg deg: {avg_degree(G)}")
-plt.xlabel("Iterations"), plt.ylabel("Cost")
+plt.title(f"{G.order()} vertices -- deg {avg_degree(G)} -- {nCol} colors")
+plt.xlabel("Iterations")
+plt.ylabel("Cost")
 plt.show()

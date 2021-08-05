@@ -82,9 +82,9 @@ p = comm.Get_size()
 #
 
 if rank == 0:
-    n = 10 # number of nodes
+    n = 100 # number of nodes
     deg = 3
-    nCol = 5 # number of colors
+    nCol = 3 # number of colors
     
     G = nx.random_degree_sequence_graph([deg for i in range(n)]) # degree sequence
     #G = nx.gnm_random_graph(n, n)
@@ -98,8 +98,8 @@ if rank == 0:
     data = np.array([H(G,coloring)]) # costs of each iterations
     best = coloring
 
-    #print(f"\nparallel...", end=" ")
-    #sys.stdout.flush()
+    print(f"\nparallel...", end=" ")
+    sys.stdout.flush()
 
 else:
     Graph = None
@@ -185,7 +185,7 @@ if rank == 0:
     plt.plot(X, data, 'g', label=f"{p} nodes")
     plt.plot(X, dataS, 'r', label="serial")
 
-    plt.title(f"{G.order()} vertices -- avg deg: {avg_degree(G)} -- {nCol} colors")
+    plt.title(f"Parallel Vs. Serial SA")
     plt.xlabel("Iterations")
     plt.ylabel("Cost")
     plt.legend()
